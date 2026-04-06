@@ -1,0 +1,1059 @@
+import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
+import '../services/hybrid_auth_service.dart';
+import 'login_screen.dart';
+import 'admin_home_screen.dart';
+import 'settings_screen.dart';
+import 'user_profile_screen.dart';
+import 'oceanpedia_screen.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final HybridAuthService _authService = HybridAuthService();
+  Map<String, dynamic>? _currentUser;
+  String? _username;
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isAdmin = user?['isAdmin'] == true;
+          // Extract username with fallback logic
+          if (user != null) {
+            if (user['source'] == 'sqlite') {
+              _username = user['username'] as String?;
+            } else if (user['source'] == 'firebase') {
+              // For Firebase users, try username first, then email prefix, then display name
+              _username =
+                  user['username'] as String? ??
+                  user['email']?.toString().split('@')[0] ??
+                  user['displayName']?.toString().toLowerCase().replaceAll(
+                    ' ',
+                    '',
+                  );
+            }
+          }
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading current user: $e', name: 'DashboardScreen');
+      if (mounted) {
+        setState(() {
+          _currentUser = null;
+          _username = null;
+          _isAdmin = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _authService.signOut();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade800,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDisplayName() {
+    if (_currentUser?['displayName'] != null &&
+        _currentUser!['displayName'].toString().isNotEmpty) {
+      return _currentUser!['displayName'].toString();
+    }
+    if (_currentUser?['username'] != null &&
+        _currentUser!['username'].toString().isNotEmpty) {
+      return _currentUser!['username'].toString();
+    }
+    if (_currentUser?['email'] != null) {
+      return _currentUser!['email'].toString().split('@')[0];
+    }
+    return 'User';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        backgroundColor: Colors.blue.shade800,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
+      drawer: _buildUserDrawer(),
+      body: _currentUser == null
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading your data...'),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadCurrentUser,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome Section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.blue.shade400,
+                            Colors.blue.shade600,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 25,
+                                backgroundColor: Colors.white,
+                                child: _currentUser?['photoURL'] != null
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          _currentUser!['photoURL'] as String,
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Icon(
+                                                  Icons.person,
+                                                  size: 30,
+                                                  color: Colors.blue,
+                                                );
+                                              },
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.person,
+                                        size: 30,
+                                        color: Colors.blue,
+                                      ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Hi, ${_getDisplayName()}! 👋',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Welcome back to See Adventure',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Featured Section - Oceanpedia
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.cyan.shade400,
+                            Colors.blue.shade500,
+                            Colors.blue.shade600,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const OceanpediaScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.water,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Oceanpedia',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Explore the wonders of marine life',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _buildFeatureChip('Fish', '8', Colors.orange),
+                                      const SizedBox(width: 12),
+                                      _buildFeatureChip('Corals', '2', Colors.green),
+                                      const SizedBox(width: 12),
+                                      _buildFeatureChip('Deep Sea', '3', Colors.purple),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Marine Trivia Section
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.teal.shade400,
+                            Colors.cyan.shade500,
+                            Colors.blue.shade600,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.teal.withOpacity(0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _showTriviaDialog,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.quiz,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Ocean Trivia',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Test your marine knowledge!',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _buildTriviaChip('Daily Quiz', Colors.orange),
+                                      const SizedBox(width: 12),
+                                      _buildTriviaChip('Fun Facts', Colors.purple),
+                                      const SizedBox(width: 12),
+                                      _buildTriviaChip('Learn', Colors.green),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  List<Map<String, dynamic>> _triviaQuestions = [
+    {
+      'question': 'What is the largest fish in the ocean?',
+      'options': ['Great White Shark', 'Whale Shark', 'Giant Squid', 'Blue Whale'],
+      'correct': 1,
+      'fact': 'The Whale Shark can grow up to 40 feet long and is the largest fish in the world!'
+    },
+    {
+      'question': 'How long can a sea turtle hold its breath?',
+      'options': ['30 minutes', '2 hours', '5 hours', '10 hours'],
+      'correct': 2,
+      'fact': 'Sea turtles can hold their breath for up to 5 hours when resting!'
+    },
+    {
+      'question': 'What percentage of the ocean have we explored?',
+      'options': ['5%', '20%', '50%', '80%'],
+      'correct': 0,
+      'fact': 'Only 5% of the ocean has been explored - there\'s still so much to discover!'
+    },
+    {
+      'question': 'Which fish can change its gender?',
+      'options': ['Salmon', 'Clownfish', 'Tuna', 'Swordfish'],
+      'correct': 1,
+      'fact': 'Clownfish are all born male, and the dominant one changes to female!'
+    },
+    {
+      'question': 'How deep can the Mariana Trench go?',
+      'options': ['5,000 feet', '11,000 feet', '20,000 feet', '36,000 feet'],
+      'correct': 3,
+      'fact': 'The Mariana Trench reaches 36,000 feet deep - deeper than Mount Everest is tall!'
+    },
+    {
+      'question': 'What do corals eat?',
+      'options': ['Only plants', 'Only animals', 'Both plants and animals', 'Nothing'],
+      'correct': 2,
+      'fact': 'Corals have a unique relationship with algae (plants) but also catch tiny animals (zooplankton)!'
+    }
+  ];
+
+  int _currentQuestionIndex = 0;
+  int _score = 0;
+  bool _showAnswer = false;
+
+  void _showTriviaDialog() {
+    _currentQuestionIndex = 0;
+    _score = 0;
+    _showAnswer = false;
+    _showTriviaQuestionDialog();
+  }
+
+  void _showTriviaQuestionDialog() {
+    final question = _triviaQuestions[_currentQuestionIndex];
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.quiz, color: Colors.blue.shade800, size: 16),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Q${_currentQuestionIndex + 1}/${_triviaQuestions.length}',
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  question['question'],
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                ...List.generate(question['options'].length, (index) {
+                final isCorrect = index == question['correct'];
+                final isSelected = _showAnswer;
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _showAnswer ? null : () => _checkAnswer(index, setState),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? isCorrect
+                                  ? Colors.green.withOpacity(0.2)
+                                  : Colors.red.withOpacity(0.2)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected
+                                ? isCorrect
+                                    ? Colors.green
+                                    : Colors.red
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? isCorrect
+                                        ? Colors.green
+                                        : Colors.red
+                                    : Colors.grey.shade300,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: isSelected
+                                    ? Icon(
+                                        isCorrect ? Icons.check : Icons.close,
+                                        color: Colors.white,
+                                        size: 12,
+                                      )
+                                    : Text(
+                                        String.fromCharCode(65 + index),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                question['options'][index],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? isCorrect
+                                          ? Colors.green.shade800
+                                          : Colors.red.shade800
+                                      : Colors.black87,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                }),
+                if (_showAnswer) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb, color: Colors.blue.shade800, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Fun Fact',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        question['fact'],
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            if (_showAnswer)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (_currentQuestionIndex < _triviaQuestions.length - 1) {
+                    _currentQuestionIndex++;
+                    _showAnswer = false;
+                    _showTriviaQuestionDialog();
+                  } else {
+                    _showTriviaResults();
+                  }
+                },
+                child: Text(
+                  _currentQuestionIndex < _triviaQuestions.length - 1 ? 'Next Question' : 'See Results',
+                ),
+              ),
+            if (!_showAnswer)
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Skip Quiz'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _checkAnswer(int selectedIndex, StateSetter setState) {
+    final correct = _triviaQuestions[_currentQuestionIndex]['correct'];
+    if (selectedIndex == correct) {
+      _score++;
+    }
+    setState(() {
+      _showAnswer = true;
+    });
+  }
+
+  void _showTriviaResults() {
+    final percentage = ((_score / _triviaQuestions.length) * 100).round();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.emoji_events, color: Colors.amber),
+            const SizedBox(width: 8),
+            const Text('Quiz Complete!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: percentage >= 60 ? Colors.green.shade50 : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: percentage >= 60 ? Colors.green.shade200 : Colors.orange.shade200,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '$_score/${_triviaQuestions.length}',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: percentage >= 60 ? Colors.green.shade800 : Colors.orange.shade800,
+                    ),
+                  ),
+                  Text(
+                    '$percentage%',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: percentage >= 60 ? Colors.green.shade600 : Colors.orange.shade600,
+                    ),
+                  ),
+                  Text(
+                    percentage >= 60 ? 'Great Job!' : 'Keep Learning!',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: percentage >= 60 ? Colors.green.shade700 : Colors.orange.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              percentage >= 60
+                  ? 'You\'re a marine expert! 🐠'
+                  : 'You\'re learning! Keep exploring Oceanpedia! 📚',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showTriviaDialog();
+            },
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTriviaChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          // User Header
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blue.shade800),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white,
+                      child: _currentUser?['photoURL'] != null
+                          ? ClipOval(
+                              child: Image.network(
+                                _currentUser!['photoURL'] as String,
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.blue.shade800,
+                                  );
+                                },
+                              ),
+                            )
+                          : Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.blue.shade800,
+                            ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getDisplayName(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _currentUser?['email'] ?? '',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _currentUser?['provider']
+                                      ?.toString()
+                                      .toUpperCase() ??
+                                  'USER',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Menu Items
+          ListTile(
+            leading: Icon(Icons.home, color: Colors.blue.shade800),
+            title: const Text('Dashboard'),
+            subtitle: const Text('Your personal dashboard'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person, color: Colors.blue),
+            title: const Text('User Profile'),
+            subtitle: const Text('View profile and activity'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserProfileScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.water, color: Colors.cyan),
+            title: const Text('Oceanpedia'),
+            subtitle: const Text('Explore marine life encyclopedia'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const OceanpediaScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings, color: Colors.orange),
+            title: const Text('Settings'),
+            subtitle: const Text('Account settings and preferences'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.analytics, color: Colors.green),
+            title: const Text('My Activity'),
+            subtitle: const Text('View your activity history'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Activity history coming soon!')),
+              );
+            },
+          ),
+          const Divider(),
+          if (_isAdmin)
+            ListTile(
+              leading: const Icon(
+                Icons.admin_panel_settings,
+                color: Colors.purple,
+              ),
+              title: const Text('Admin Panel'),
+              subtitle: const Text('System administration'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminHomeScreen(),
+                  ),
+                );
+              },
+            ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout'),
+            subtitle: const Text('Sign out of your account'),
+            onTap: () {
+              Navigator.pop(context);
+              _logout();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureChip(String label, String count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$label: $count',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Card(
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(icon, size: 40, color: color),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout();
+              },
+              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
