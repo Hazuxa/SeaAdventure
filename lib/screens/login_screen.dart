@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final HybridAuthService _authService = HybridAuthService();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -137,12 +138,17 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       Map<String, dynamic>? user = await _authService.signInWithGoogle();
 
-      // Hide loading dialog
-      if (mounted) {
-        DialogService.hideLoadingDialog(context);
+      if (user == null) {
+        // User cancelled - hide loading and return
+        if (mounted) {
+          DialogService.hideLoadingDialog(context);
+        }
+        return;
       }
 
-      if (user != null && mounted) {
+      if (mounted) {
+        DialogService.hideLoadingDialog(context);
+        
         // Check if user is admin (Google users are not admin by default)
         final isAdmin = user['isAdmin'] == true;
 
@@ -176,11 +182,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      // Hide loading dialog
-      if (mounted) {
-        DialogService.hideLoadingDialog(context);
-      }
-
       // Show error dialog
       if (mounted) {
         DialogService.showErrorDialog(
@@ -188,6 +189,11 @@ class _LoginScreenState extends State<LoginScreen> {
           title: 'Google Sign-In Failed',
           message: 'Failed to sign in with Google. Please try again.',
         );
+      }
+    } finally {
+      // Always hide loading dialog
+      if (mounted) {
+        DialogService.hideLoadingDialog(context);
       }
     }
   }
@@ -246,10 +252,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

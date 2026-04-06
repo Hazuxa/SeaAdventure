@@ -143,21 +143,21 @@ class HybridAuthService {
   // Ensure Google Sign-In is initialized
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) return;
-    _googleSignInInitialized = true;
-
-    // Configure Google Sign-In to always show account picker
-    await _googleSignIn.signOut(); // Clear any previous sign-in state
+    
+    // Always create a fresh GoogleSignIn instance
     _googleSignIn = GoogleSignIn(
       scopes: ['email', 'profile'],
       hostedDomain: '', // Allow any domain
     );
+    
+    _googleSignInInitialized = true;
   }
 
   // Sign up with Google (creates account but doesn't sign in)
   Future<Map<String, dynamic>?> signUpWithGoogle() async {
     try {
       await _ensureGoogleSignInInitialized();
-
+      
       // Force sign out to show account picker every time
       await _googleSignIn.signOut();
 
@@ -185,27 +185,15 @@ class HybridAuthService {
       final User? user = userCredential.user;
 
       if (user != null) {
-        // Save to Firestore
+        // Save to Firestore ONLY - never to SQLite for Google users
         final userModel = UserModel.fromFirebaseUser(user, provider: 'google');
         await _firestoreService.saveUser(userModel);
-
-        // Also save to SQLite for local backup
-        await _sqliteService.insertUser(
-          uid: user.uid,
-          email: user.email ?? '',
-          username: user.email?.split('@')[0] ?? 'user',
-          password: '', // No password for Google users
-          displayName: user.displayName,
-          photoUrl: user.photoURL,
-          phoneNumber: user.phoneNumber,
-          provider: 'google',
-        );
 
         // Sign out immediately after creating account
         await _firebaseAuth.signOut();
 
         developer.log(
-          'Google sign-up success: ${user.email} name=${user.displayName}',
+          'Google sign-up success: ${user.email}',
           name: 'HybridAuthService',
         );
 
@@ -218,6 +206,7 @@ class HybridAuthService {
           'phoneNumber': user.phoneNumber,
           'provider': 'google',
           'source': 'firebase',
+          'isAdmin': false,
         };
       }
 
@@ -228,11 +217,11 @@ class HybridAuthService {
     }
   }
 
-  // Sign in with Google (Firebase only)
+  // Sign in with Google (Firebase only - completely separate from SQLite users)
   Future<Map<String, dynamic>?> signInWithGoogle() async {
     try {
       await _ensureGoogleSignInInitialized();
-
+      
       // Force sign out to show account picker every time
       await _googleSignIn.signOut();
 
@@ -259,28 +248,16 @@ class HybridAuthService {
       final User? user = userCredential.user;
 
       if (user != null) {
-        // Save to Firestore
+        // Save to Firestore ONLY - never to SQLite for Google users
         final userModel = UserModel.fromFirebaseUser(user, provider: 'google');
         await _firestoreService.saveUser(userModel);
 
-        // Also save to SQLite for local backup (but don't save session)
-        await _sqliteService.insertUser(
-          uid: user.uid,
-          email: user.email ?? '',
-          username: user.email?.split('@')[0] ?? 'user',
-          password: '', // No password for Google users
-          displayName: user.displayName,
-          photoUrl: user.photoURL,
-          phoneNumber: user.phoneNumber,
-          provider: 'google',
-        );
-
         developer.log(
-          'Google sign-in success: ${user.email} name=${user.displayName}',
+          'Google sign-in success: ${user.email}',
           name: 'HybridAuthService',
         );
 
-        // Return user data but don't save session - user needs to login manually
+        // Return user data - Google users stay in Firebase only
         return {
           'id': user.uid,
           'uid': user.uid,
@@ -290,6 +267,7 @@ class HybridAuthService {
           'phoneNumber': user.phoneNumber,
           'provider': 'google',
           'source': 'firebase',
+          'isAdmin': false, // Google users are never admin
         };
       }
 
@@ -452,17 +430,27 @@ class HybridAuthService {
   // Sign out
   Future<void> signOut() async {
     try {
-      await _ensureGoogleSignInInitialized();
-      await _googleSignIn.signOut();
+      // Sign out from Google first (this clears the cached account)
+      if (_googleSignInInitialized) {
+        await _googleSignIn.signOut();
+        await _googleSignIn.disconnect();
+      }
+      
+      // Sign out from Firebase
       await _firebaseAuth.signOut();
 
       // Clear SQLite session
       final sessionManager = SessionManager();
       await sessionManager.clearSession();
+      
+      // Reset Google Sign-In initialization so it can be re-initialized on next login
+      _googleSignInInitialized = false;
 
       developer.log('User signed out successfully', name: 'HybridAuthService');
     } catch (e) {
       developer.log('Error signing out: $e', name: 'HybridAuthService');
+      // Still reset the flag even if there's an error
+      _googleSignInInitialized = false;
     }
   }
 
