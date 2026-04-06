@@ -60,176 +60,243 @@ class _OceanpediaScreenState extends State<OceanpediaScreen>
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Oceanpedia'),
-          backgroundColor: Colors.blue.shade700,
-          foregroundColor: Colors.white,
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: const [
-              Tab(icon: Icon(Icons.list), text: 'All'),
-              Tab(icon: Icon(Icons.pets), text: 'Fish'),
-              Tab(icon: Icon(Icons.grain), text: 'Corals'),
-              Tab(icon: Icon(Icons.nights_stay), text: 'Deep Sea'),
-            ],
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.cyan.shade300,
+                Colors.blue.shade500,
+                Colors.blue.shade800,
+                Colors.indigo.shade900,
+                Colors.deepPurple.shade900,
+              ],
+              stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+            ),
           ),
-        ),
-        body: Column(
-          children: [
-            // Header Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue.shade500, Colors.blue.shade700, Colors.blue.shade900],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Stats Row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildStatChip(
-                          Icons.pets,
-                          '${_allCreatures.length}',
-                          'Creatures',
-                          Colors.orange,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatChip(
-                          Icons.warning,
-                          '${_allCreatures.where((c) => c.conservationStatus == ConservationStatus.endangered || c.conservationStatus == ConservationStatus.criticallyEndangered).length}',
-                          'Endangered',
-                          Colors.red,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatChip(
-                          Icons.category,
-                          '3',
-                          'Categories',
-                          Colors.green,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Search Bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search marine creatures...',
-                        hintStyle: TextStyle(color: Colors.grey.shade400),
-                        prefixIcon: Icon(Icons.search, color: Colors.blue.shade600),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear, color: Colors.grey.shade400),
-                                onPressed: () => _searchController.clear(),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Header with depth indicator
+                _buildHeader(),
+                
+                // Search Bar
+                _buildSearchBar(),
+                
+                // Depth Zone Tabs
+                _buildDepthTabs(),
 
-            // Tab Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildCreatureList(_filteredCreatures),
-                  _buildCreatureList(_getCreaturesByType(CreatureType.fish)),
-                  _buildCreatureList(_getCreaturesByType(CreatureType.coral)),
-                  _buildCreatureList(_getCreaturesByType(CreatureType.deepSea)),
-                ],
-              ),
+                // Tab Content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildCreatureList(_filteredCreatures, 'surface'),
+                      _buildCreatureList(_getCreaturesByType(CreatureType.fish), 'shallow'),
+                      _buildCreatureList(_getCreaturesByType(CreatureType.coral), 'reef'),
+                      _buildCreatureList(_getCreaturesByType(CreatureType.deepSea), 'abyss'),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatChip(IconData icon, String value, String label, Color color) {
+  Widget _buildHeader() {
     return Container(
-      width: 100,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+          // Back button
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 11,
+              child: const Icon(
+                Icons.arrow_back_ios,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(width: 12),
+          // Water icon
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: const Icon(
+              Icons.water,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Oceanpedia',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Depth Explorer • ${_allCreatures.length} Species',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.thermostat, color: Colors.white.withOpacity(0.9), size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  '4°C',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCreatureList(List<MarineCreature> creatures) {
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search marine life...',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.15),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.4)),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.7), size: 20),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDepthTabs() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        dividerColor: Colors.transparent,
+        indicator: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.cyan.shade400, Colors.blue.shade400],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white.withOpacity(0.6),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+        tabs: [
+          _buildDepthTab('All', Icons.waves),
+          _buildDepthTab('Fish', Icons.water),
+          _buildDepthTab('Coral', Icons.grain),
+          _buildDepthTab('Deep', Icons.nights_stay),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDepthTab(String label, IconData icon) {
+    return Tab(
+      height: 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreatureList(List<MarineCreature> creatures, String depthZone) {
     if (creatures.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey.shade300),
+            Icon(Icons.search_off, size: 64, color: Colors.white.withOpacity(0.3)),
             const SizedBox(height: 16),
             Text(
               'No creatures found',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 18, color: Colors.white.withOpacity(0.6)),
             ),
           ],
         ),
@@ -240,139 +307,251 @@ class _OceanpediaScreenState extends State<OceanpediaScreen>
       padding: const EdgeInsets.all(16),
       itemCount: creatures.length,
       itemBuilder: (context, index) {
-        return _buildCreatureCard(creatures[index]);
+        return _buildCreatureCard(creatures[index], depthZone, index);
       },
     );
   }
 
-  Widget _buildCreatureCard(MarineCreature creature) {
-    return Card(
+  Widget _buildCreatureCard(MarineCreature creature, String depthZone, int index) {
+    // Different styling based on depth zone
+    final zoneColors = {
+      'surface': [Colors.cyan.shade100, Colors.blue.shade200],
+      'shallow': [Colors.blue.shade100, Colors.teal.shade200],
+      'reef': [Colors.teal.shade100, Colors.green.shade200],
+      'abyss': [Colors.indigo.shade200, Colors.purple.shade300],
+    };
+    
+    final zoneGlowColors = {
+      'surface': Colors.cyan.shade300,
+      'shallow': Colors.blue.shade300,
+      'reef': Colors.teal.shade300,
+      'abyss': Colors.purple.shade400,
+    };
+
+    final colors = zoneColors[depthZone] ?? zoneColors['surface']!;
+    final glowColor = zoneGlowColors[depthZone] ?? Colors.blue.shade300;
+    
+    // Bioluminescent effect for deep sea
+    final isDeepSea = creature.type == CreatureType.deepSea;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreatureDetailScreen(creature: creature),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Conservation status indicator
-                Container(
-                  width: 6,
-                  decoration: BoxDecoration(
-                    color: creature.conservationStatusColor,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Icon
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade100, Colors.cyan.shade100],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    creature.typeIcon,
-                    size: 32,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        creature.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        creature.scientificName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: creature.conservationStatusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: creature.conservationStatusColor.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Text(
-                              creature.conservationStatusText,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: creature.conservationStatusColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Text(
-                              creature.typeText,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Arrow
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right, color: Colors.grey.shade400),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDeepSea 
+                ? Colors.cyan.shade400.withOpacity(0.3)
+                : glowColor.withOpacity(0.2),
+            blurRadius: isDeepSea ? 15 : 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.95),
+                Colors.white.withOpacity(0.85),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: isDeepSea 
+                  ? Colors.cyan.shade300.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              width: isDeepSea ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CreatureDetailScreen(creature: creature),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  // Creature icon with depth-themed background
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: colors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors[1].withOpacity(0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      creature.typeIcon,
+                      size: 28,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                creature.name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isDeepSea)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.cyan.shade400.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.cyan.shade400.withOpacity(0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.bolt, color: Colors.cyan.shade600, size: 12),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      'Bio',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.cyan.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          creature.scientificName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            _buildStatusBadge(creature.conservationStatusText, creature.conservationStatusColor),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 10,
+                                    color: Colors.blue.shade600,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _getDepthForCreature(creature.type),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Arrow with glow effect
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.blue.shade600,
+                      size: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  String _getDepthForCreature(CreatureType type) {
+    switch (type) {
+      case CreatureType.fish:
+        return '0-200m';
+      case CreatureType.coral:
+        return '0-50m';
+      case CreatureType.deepSea:
+        return '1000m+';
+      default:
+        return 'Varies';
+    }
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -859,166 +1038,6 @@ class _OceanpediaScreenState extends State<OceanpediaScreen>
         ],
         location: 'Shallow tropical and temperate waters worldwide',
         behavior: 'Solitary or in pairs, anchors to coral with tail'
-      ),
-      MarineCreature(
-        id: '16',
-        name: 'Dolphin',
-        scientificName: 'Delphinidae family',
-        type: CreatureType.fish,
-        description: 'Dolphins are highly intelligent marine mammals known for their playful behavior, communication skills, and echolocation abilities.',
-        uniqueTraits: [
-          'Advanced echolocation system',
-          'Highly social and playful',
-          'Can recognize themselves in mirrors',
-          'Breathe voluntarily through blowhole'
-        ],
-        trivia: [
-          'Dolphins sleep with half their brain awake.',
-          'They have signature whistles like names.',
-          'They can swim at speeds up to 20 mph.',
-          'Some species can dive to 1,000 feet.'
-        ],
-        habitat: 'Coastal and offshore waters, some rivers',
-        diet: 'Carnivore - fish, squid, crustaceans',
-        size: '6-12 feet (1.8-3.6 m) depending on species',
-        lifespan: '40-60 years',
-        conservationStatus: ConservationStatus.leastConcern,
-        imageUrl: '',
-        funFacts: [
-          'Dolphins have been observed using tools.',
-          'They help injured or sick pod members.',
-          'They can leap up to 20 feet out of water.'
-        ],
-        location: 'All major oceans and some large rivers',
-        behavior: 'Highly social, lives in pods, cooperative hunters'
-      ),
-      MarineCreature(
-        id: '17',
-        name: 'Lionfish',
-        scientificName: 'Pterois volitans',
-        type: CreatureType.fish,
-        description: 'Lionfish are striking venomous fish with elaborate fins. Native to the Indo-Pacific, they are invasive in the Atlantic and Caribbean.',
-        uniqueTraits: [
-          'Venomous spines on dorsal fins',
-          'Elaborate venomous pectoral fins',
-          'Invasive species in Atlantic waters',
-          'Striped warning coloration'
-        ],
-        trivia: [
-          'Lionfish venom is painful but rarely fatal to humans.',
-          'They can reproduce year-round.',
-          'One female can release 2 million eggs per year.',
-          'They have no natural predators in invaded waters.'
-        ],
-        habitat: 'Coral reefs, rocky crevices, shipwrecks',
-        diet: 'Carnivore - small fish, invertebrates, shrimp',
-        size: 'Up to 18 inches (45 cm)',
-        lifespan: '5-15 years',
-        conservationStatus: ConservationStatus.leastConcern,
-        imageUrl: '',
-        funFacts: [
-          'Lionfish are popular in aquariums but challenging to keep.',
-          'They can eat prey half their body size.',
-          'Their venom is defensive, not used for hunting.'
-        ],
-        location: 'Indo-Pacific native, invasive in Atlantic/Caribbean',
-        behavior: 'Slow-moving ambush predator, solitary or small groups'
-      ),
-      MarineCreature(
-        id: '18',
-        name: 'Giant Tube Worm',
-        scientificName: 'Riftia pachyptila',
-        type: CreatureType.deepSea,
-        description: 'Giant tube worms live near hydrothermal vents in the deep ocean. They have no mouth or digestive system and rely entirely on symbiotic bacteria.',
-        uniqueTraits: [
-          'No mouth or digestive system',
-          'Lives near hydrothermal vents',
-          'Bright red plume for gas exchange',
-          'Symbiotic relationship with bacteria'
-        ],
-        trivia: [
-          'Can grow up to 8 feet long.',
-          'They were discovered in 1977.',
-          'Their red color comes from hemoglobin-like proteins.',
-          'They can tolerate extreme temperatures and pressure.'
-        ],
-        habitat: 'Hydrothermal vents, 5,000-8,000 feet deep',
-        diet: 'Chemosynthesis via symbiotic bacteria',
-        size: 'Up to 8 feet (2.4 m) long',
-        lifespan: 'Over 250 years',
-        conservationStatus: ConservationStatus.dataDeficient,
-        imageUrl: '',
-        funFacts: [
-          'They grow faster than almost any other marine invertebrate.',
-          'Their symbiotic bacteria convert chemicals to energy.',
-          'They are one of the fastest-growing marine animals.'
-        ],
-        location: 'Pacific Ocean hydrothermal vents',
-        behavior: 'Sessile, extends plume to capture chemicals from vents'
-      ),
-      MarineCreature(
-        id: '19',
-        name: 'Moray Eel',
-        scientificName: 'Muraenidae family',
-        type: CreatureType.fish,
-        description: 'Moray eels are secretive predators that hide in rocky crevices and coral reefs. They have a second set of jaws in their throat.',
-        uniqueTraits: [
-          'Second set of pharyngeal jaws',
-          'No pectoral or pelvic fins',
-          'Continuous dorsal fin',
-          'Poor eyesight, relies on smell'
-        ],
-        trivia: [
-          'Moray eels can tie themselves in knots for leverage.',
-          'There are over 200 species of moray eels.',
-          'They open and close their mouths to breathe.',
-          'Some species can grow to 13 feet long.'
-        ],
-        habitat: 'Coral reefs, rocky crevices, shipwrecks',
-        diet: 'Carnivore - fish, squid, octopus, crustaceans',
-        size: '5 inches to 13 feet (12 cm to 4 m)',
-        lifespan: '10-30 years',
-        conservationStatus: ConservationStatus.leastConcern,
-        imageUrl: '',
-        funFacts: [
-          'Their pharyngeal jaws launch forward to grab prey.',
-          'They have a symbiotic relationship with cleaner shrimp.',
-          'Some species are venomous, but most are not.'
-        ],
-        location: 'Tropical and subtropical waters worldwide',
-        behavior: 'Nocturnal hunter, hides in crevices during day'
-      ),
-      MarineCreature(
-        id: '20',
-        name: 'Manatee',
-        scientificName: 'Trichechus genus',
-        type: CreatureType.fish,
-        description: 'Manatees are gentle, slow-moving herbivores often called sea cows. They are distant relatives of elephants and face threats from boat strikes.',
-        uniqueTraits: [
-          'Herbivorous marine mammal',
-          'Related to elephants',
-          'Must surface to breathe every 3-5 minutes',
-          'Propelled by paddle-like tail'
-        ],
-        trivia: [
-          'Manatees can eat 10-15% of their body weight daily.',
-          'They have no natural predators.',
-          'They are the state marine mammal of Florida.',
-          'Christopher Columbus mistook them for mermaids.'
-        ],
-        habitat: 'Shallow coastal waters, rivers, estuaries',
-        diet: 'Herbivore - seagrass, water hyacinth, water lettuce',
-        size: '8-13 feet (2.4-4 m) long',
-        lifespan: '60-70 years',
-        conservationStatus: ConservationStatus.vulnerable,
-        imageUrl: '',
-        funFacts: [
-          'Manatees are known as "sea cows" but are more related to elephants.',
-          'They can hold their breath for up to 20 minutes.',
-          'They must migrate to warmer waters in winter.'
-        ],
-        location: 'Southeast US, Caribbean, West Africa, Amazon',
-        behavior: 'Solitary or small groups, slow-moving grazer'
       ),
     ];
   }
